@@ -70,8 +70,18 @@ class Scalar:
         object.__setattr__(self, "name", str(self.unique_id))
         object.__setattr__(self, "data", float(self.data))
 
+    # In top-sort, we now only store unique ids in set. Might not need this.
+    def __hash__(self) -> int:
+        return hash(id(self))
+
     def __repr__(self) -> str:
         return f"Scalar({self.data})"
+
+    def __add__(self, b: ScalarLike) -> Scalar:
+        return Add.apply(self, b)
+
+    def __sub__(self, b: ScalarLike) -> Scalar:
+        return Add.apply(self, Neg.apply(b))
 
     def __mul__(self, b: ScalarLike) -> Scalar:
         return Mul.apply(self, b)
@@ -88,8 +98,39 @@ class Scalar:
     def __radd__(self, b: ScalarLike) -> Scalar:
         return self + b
 
+    def __rsub__(self, b: ScalarLike) -> Scalar:
+        return b - self
+
     def __rmul__(self, b: ScalarLike) -> Scalar:
         return self * b
+
+    def __neg__(self) -> Scalar:
+        return Neg.apply(self)
+
+    def __lt__(self, b: ScalarLike) -> Scalar:
+        return LT.apply(self, b)
+
+    def __gt__(self, b: ScalarLike) -> Scalar:
+        return LT.apply(b, self)
+
+    def __eq__(self, b: ScalarLike) -> Scalar:
+        return EQ.apply(self, b)
+
+    def log(self) -> Scalar:
+        """Return the natural logarithm of the scalar."""
+        return Log.apply(self)
+
+    def exp(self) -> Scalar:
+        """Return the exponential of the scalar."""
+        return Exp.apply(self)
+
+    def sigmoid(self) -> Scalar:
+        """Return the sigmoid of the scalar."""
+        return Sigmoid.apply(self)
+
+    def relu(self) -> Scalar:
+        """Return the ReLU of the scalar."""
+        return ReLU.apply(self)
 
     # Variable elements for backprop
 
@@ -112,21 +153,36 @@ class Scalar:
         return self.history is not None and self.history.last_fn is None
 
     def is_constant(self) -> bool:
+        """True if this variable is a constant (no `derivative`)"""
         return self.history is None
 
     @property
     def parents(self) -> Iterable[Variable]:
-        """Get the variables used to create this one."""
+        """Return which variables contributed to the creation of this scalar."""
         assert self.history is not None
         return self.history.inputs
 
     def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
+        """Implement the chain_rule function in Scalar for functions of arbitrary arguments.
+        This function should be able to backward process a function by passing it in a context
+        and d and then collecting the local derivatives. It should then pair these with the
+        right variables and return them. This function is also where we filter out constants that
+        were used on the forward pass, but do not need derivatives.
+        """
         h = self.history
         assert h is not None
         assert h.last_fn is not None
         assert h.ctx is not None
 
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # Call the backward function of the last function
+        gradients = h.last_fn._backward(h.ctx, d_output)
+
+        # Filter out constants and return the computed gradients as an iterable of tuples
+        return [
+            (input_var, grad)
+            for input_var, grad in zip(h.inputs, gradients)
+            if not input_var.is_constant()
+        ]
 
     def backward(self, d_output: Optional[float] = None) -> None:
         """Calls autodiff to fill in the derivatives for the history of this object.
@@ -141,15 +197,13 @@ class Scalar:
             d_output = 1.0
         backpropagate(self, d_output)
 
-    raise NotImplementedError("Need to include this file from past assignment.")
-
 
 def derivative_check(f: Any, *scalars: Scalar) -> None:
     """Checks that autodiff works on a python function.
     Asserts False if derivative is incorrect.
 
-    Parameters
-    ----------
+    Args:
+    ----
         f : function from n-scalars to 1-scalar.
         *scalars  : n input scalar values.
 
@@ -158,8 +212,8 @@ def derivative_check(f: Any, *scalars: Scalar) -> None:
     out.backward()
 
     err_msg = """
-Derivative check at arguments f(%s) and received derivative f'=%f for argument %d,
-but was expecting derivative f'=%f from central difference."""
+        Derivative check at arguments f(%s) and received derivative f'=%f for argument %d,
+        but was expecting derivative f'=%f from central difference."""
     for i, x in enumerate(scalars):
         check = central_difference(f, *scalars, arg=i)
         print(str([x.data for x in scalars]), x.derivative, i, check)
