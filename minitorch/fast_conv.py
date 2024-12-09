@@ -240,21 +240,26 @@ def _tensor_conv2d(
                 for w in prange(width):
                     acc = 0.0
                     for ic in range(in_channels):
-                        for k1 in range(kh):
-                            for k2 in range(kw):
-                                # Compute the input position based on kernel alignment
-                                h_pos = h - k1 if reverse else h + k1
-                                w_pos = w - k2 if reverse else w + k2
-                                if 0 <= h_pos < height and 0 <= w_pos < width:
+                        for r in range(kh):
+                            input_h = h - r if reverse else h + r
+                            for c in range(kw):
+                                input_w = w - c if reverse else w + c
+                                if 0 <= input_h < height and 0 <= input_w < weight:
                                     input_idx = (
-                                        b * s10 + ic * s11 + h_pos * s12 + w_pos * s13
+                                        b * s10
+                                        + ic * s11
+                                        + input_h * s12
+                                        + input_w * s13
                                     )
-                                    weight_idx = (
-                                        oc * s20 + ic * s21 + k1 * s22 + k2 * s23
-                                    )
+                                    weight_idx = oc * s20 + ic * s21 + r * s22 + h * s23
                                     acc += input[input_idx] * weight[weight_idx]
                     # Write result to output
-                    out_idx = b * out_strides[0] + oc * out_strides[1] + h * out_strides[2] + w * out_strides[3]
+                    out_idx = (
+                        b * out_strides[0]
+                        + oc * out_strides[1]
+                        + h * out_strides[2]
+                        + w * out_strides[3]
+                    )
                     out[out_idx] = acc
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
