@@ -43,8 +43,7 @@ def _tensor_conv1d(
     weight_strides: Strides,
     reverse: bool,
 ) -> None:
-    """
-    1D Convolution implementation with Numba.
+    """1D Convolution implementation with Numba.
 
     Args:
     ----
@@ -59,6 +58,7 @@ def _tensor_conv1d(
         weight_shape (Shape): shape for `input` tensor.
         weight_strides (Strides): strides for `input` tensor.
         reverse (bool): anchor weight at left or right.
+
     """
     batch, out_channels, out_width = out_shape
     batch_, in_channels, width = input_shape
@@ -72,20 +72,20 @@ def _tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    for b in prange(batch):  
-        for oc in prange(out_channels):  
+    for b in prange(batch):
+        for oc in prange(out_channels):
             for w in prange(out_width):
-                acc = 0.0  
-                for ic in range(in_channels): 
-                    for k in range(kw):  
+                acc = 0.0
+                for ic in range(in_channels):
+                    for k in range(kw):
                         # Compute the input position based on kernel alignment
                         input_pos = w - k if reverse else w + k
                         if 0 <= input_pos < width:
-                            input_idx = (b * s1[0] + ic * s1[1] + input_pos * s1[2])
-                            weight_idx = (oc * s2[0] + ic * s2[1] + k * s2[2])
+                            input_idx = b * s1[0] + ic * s1[1] + input_pos * s1[2]
+                            weight_idx = oc * s2[0] + ic * s2[1] + k * s2[2]
                             acc += input[input_idx] * weight[weight_idx]
                 # Write result to output
-                out_idx = (b * out_strides[0] + oc * out_strides[1] + w * out_strides[2])
+                out_idx = b * out_strides[0] + oc * out_strides[1] + w * out_strides[2]
                 out[out_idx] = acc
 
 
@@ -221,17 +221,28 @@ def _tensor_conv2d(
                     acc = 0.0
                     for ic in range(in_channels):
                         for r in range(kh):
-                            input_h = h-r if reverse else h+r
+                            input_h = h - r if reverse else h + r
                             for c in range(kw):
-                                input_w = w-c if reverse else w+c
+                                input_w = w - c if reverse else w + c
                                 if 0 <= input_h < height and 0 <= input_w < weight:
-                                    input_idx = b*s10 + ic*s11 + input_h*s12 + input_w*s13
-                                    weight_idx = oc*s20 + ic*s21 + r*s22 + h*s23
+                                    input_idx = (
+                                        b * s10
+                                        + ic * s11
+                                        + input_h * s12
+                                        + input_w * s13
+                                    )
+                                    weight_idx = oc * s20 + ic * s21 + r * s22 + h * s23
                                     acc += input[input_idx] * weight[weight_idx]
                     # Write result to output
-                    out_idx = b * out_strides[0] + oc * out_strides[1] + h * out_strides[2] + w * out_strides[3]
+                    out_idx = (
+                        b * out_strides[0]
+                        + oc * out_strides[1]
+                        + h * out_strides[2]
+                        + w * out_strides[3]
+                    )
                     out[out_idx] = acc
-                    
+
+
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
 
 
