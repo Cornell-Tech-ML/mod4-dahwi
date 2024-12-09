@@ -241,9 +241,9 @@ def _tensor_conv2d(
     #                 acc = 0.0
     #                 for ic in range(in_channels):
     #                     for r in range(kh):
-    #                         input_h = h - r if reverse else h + r
+    #                         input_h = h - kh + r + 1 if reverse else h + r
     #                         for c in range(kw):
-    #                             input_w = w - c if reverse else w + c
+    #                             input_w = w - kw + c + 1 if reverse else w + c
     #                             # Use input_shape to get input tensor dimensions
     #                             if 0 <= input_h < height and 0 <= input_w < width:
     #                                 input_idx = (
@@ -264,7 +264,8 @@ def _tensor_conv2d(
     #                     + w * out_strides[3]
     #                 )
     #                 out[out_idx] = acc
-        # Iterate over the output tensor
+
+    # Iterate over the output tensor
     for i in prange(out_size):
         # Get the current out_index based on out_shape
         out_index = np.empty(4, np.int32)
@@ -279,8 +280,8 @@ def _tensor_conv2d(
             for kernel_height in range(kh):
                 for kernel_width in range(kw):
                     # Current offset in convolution (anchor right if reverse)
-                    conv_offset_h = (kh - 1 - kernel_height) if reverse else kernel_height
-                    conv_offset_w = (kw - 1 - kernel_width) if reverse else kernel_width
+                    input_height = current_out_height - (kh - 1 - kernel_height) if reverse else current_out_height + kernel_height
+                    input_width = current_out_width - (kw - 1 - kernel_width) if reverse else current_out_width + kernel_width
 
                     # Current weight value
                     weight_pos = (
@@ -290,17 +291,17 @@ def _tensor_conv2d(
                         + kernel_width * weight_strides[3]
                     )
 
-                    # Current input value (subtract offset if reverse)
-                    input_height = (
-                        current_out_height - conv_offset_h
-                        if reverse
-                        else current_out_height + conv_offset_h
-                    )
-                    input_width = (
-                        current_out_width - conv_offset_w
-                        if reverse
-                        else current_out_width + conv_offset_w
-                    )
+                    # # Current input value (subtract offset if reverse)
+                    # input_height = (
+                    #     current_out_height - conv_offset_h
+                    #     if reverse
+                    #     else current_out_height + conv_offset_h
+                    # )
+                    # input_width = (
+                    #     current_out_width - conv_offset_w
+                    #     if reverse
+                    #     else current_out_width + conv_offset_w
+                    # )
 
                     # Check if input is in bounds
                     if 0 <= input_height < height and 0 <= input_width < width:
