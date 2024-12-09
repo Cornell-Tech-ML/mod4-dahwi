@@ -244,8 +244,7 @@ def _tensor_conv2d(
                             input_h = h - r if reverse else h + r
                             for c in range(kw):
                                 input_w = w - c if reverse else w + c
-                                print(type(input_h), type(input_w), type(height), type(width))
-                                if 0 <= input_h < height and 0 <= input_w < weight:
+                                if 0 <= input_h < height and 0 <= input_w < width:
                                     input_idx = (
                                         b * s10
                                         + ic * s11
