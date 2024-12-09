@@ -19,6 +19,17 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """
+    A decorator that applies the Numba `njit` (no Python) compilation to a function.
+    This decorator uses Numba's `njit` to compile the given function to machine code,
+    which can significantly improve performance by removing the Python interpreter overhead.
+    Args:
+        fn (Fn): The function to be compiled.
+        **kwargs (Any): Additional keyword arguments to pass to the Numba `njit` function.
+    Returns:
+        Fn: The compiled function.
+    """
+
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -122,6 +133,15 @@ class Conv1dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """
+        Computes the gradients of the input and weight tensors for a 1D convolution operation during the backward pass.
+        Args:
+            ctx (Context): The context object that stores information from the forward pass.
+            grad_output (Tensor): The gradient of the loss with respect to the output of the convolution.
+        Returns:
+            Tuple[Tensor, Tensor]: A tuple containing the gradients of the loss with respect to the input and weight tensors.
+        """
+
         input, weight = ctx.saved_values
         batch, in_channels, w = input.shape
         out_channels, in_channels, kw = weight.shape
@@ -274,6 +294,17 @@ class Conv2dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """
+        Computes the gradient of the loss with respect to the input and weight tensors
+        during the backward pass of the convolution operation.
+        Args:
+            ctx (Context): The context object that contains saved values from the forward pass.
+            grad_output (Tensor): The gradient of the loss with respect to the output of the convolution.
+        Returns:
+            Tuple[Tensor, Tensor]: A tuple containing the gradients of the loss with respect to the input
+            and weight tensors, respectively.
+        """
+
         input, weight = ctx.saved_values
         batch, in_channels, h, w = input.shape
         out_channels, in_channels, kh, kw = weight.shape
