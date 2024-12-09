@@ -244,14 +244,17 @@ def _tensor_conv2d(
                             input_h = h - r if reverse else h + r
                             for c in range(kw):
                                 input_w = w - c if reverse else w + c
-                                if 0 <= input_h < height and 0 <= input_w < width:
+                                # Use input_shape to get input tensor dimensions
+                                if 0 <= input_h and input_h < height and 0 <= input_w and input_w < weight:
                                     input_idx = (
                                         b * s10
                                         + ic * s11
                                         + input_h * s12
                                         + input_w * s13
                                     )
-                                    weight_idx = oc * s20 + ic * s21 + r * s22 + h * s23
+                                    weight_idx = (
+                                        oc * s20 + ic * s21 + r * s22 + c * s23
+                                    )
                                     acc += input[input_idx] * weight[weight_idx]
                     # Write result to output
                     out_idx = (
