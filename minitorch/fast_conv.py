@@ -1,5 +1,5 @@
 from typing import Tuple, TypeVar, Any
-
+import numpy as np
 from numba import njit as _njit
 from numba import prange
 
@@ -234,36 +234,87 @@ def _tensor_conv2d(
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
-    for b in prange(batch):
-        for oc in prange(out_channels):
-            for h in prange(height):
-                for w in prange(width):
-                    acc = 0.0
-                    for ic in range(in_channels):
-                        for r in range(kh):
-                            input_h = h - r if reverse else h + r
-                            for c in range(kw):
-                                input_w = w - c if reverse else w + c
-                                # Use input_shape to get input tensor dimensions
-                                if 0 <= input_h < height and 0 <= input_w < width:
-                                    input_idx = (
-                                        b * s10
-                                        + ic * s11
-                                        + input_h * s12
-                                        + input_w * s13
-                                    )
-                                    weight_idx = (
-                                        oc * s20 + ic * s21 + r * s22 + c * s23
-                                    )
-                                    acc += input[input_idx] * weight[weight_idx]
-                    # Write result to output
-                    out_idx = (
-                        b * out_strides[0]
-                        + oc * out_strides[1]
-                        + h * out_strides[2]
-                        + w * out_strides[3]
+    # for b in prange(batch):
+    #     for oc in prange(out_channels):
+    #         for h in prange(height):
+    #             for w in prange(width):
+    #                 acc = 0.0
+    #                 for ic in range(in_channels):
+    #                     for r in range(kh):
+    #                         input_h = h - r if reverse else h + r
+    #                         for c in range(kw):
+    #                             input_w = w - c if reverse else w + c
+    #                             # Use input_shape to get input tensor dimensions
+    #                             if 0 <= input_h < height and 0 <= input_w < width:
+    #                                 input_idx = (
+    #                                     b * s10
+    #                                     + ic * s11
+    #                                     + input_h * s12
+    #                                     + input_w * s13
+    #                                 )
+    #                                 weight_idx = (
+    #                                     oc * s20 + ic * s21 + r * s22 + c * s23
+    #                                 )
+    #                                 acc += input[input_idx] * weight[weight_idx]
+    #                 # Write result to output
+    #                 out_idx = (
+    #                     b * out_strides[0]
+    #                     + oc * out_strides[1]
+    #                     + h * out_strides[2]
+    #                     + w * out_strides[3]
+    #                 )
+    #                 out[out_idx] = acc
+        # Iterate over the output tensor
+    for i in prange(out_size):
+        # Get the current out_index based on out_shape
+        out_index = np.empty(4, np.int32)
+        to_index(i, out_shape, out_index)
+        current_batch, current_out_channel, current_out_height, current_out_width = out_index
+
+        # Accumulator for the convolution
+        acc = 0.0
+
+        # Iterate through the kernel
+        for current_in_channel in range(in_channels):
+            for kernel_height in range(kh):
+                for kernel_width in range(kw):
+                    # Current offset in convolution (anchor right if reverse)
+                    conv_offset_h = (kh - 1 - kernel_height) if reverse else kernel_height
+                    conv_offset_w = (kw - 1 - kernel_width) if reverse else kernel_width
+
+                    # Current weight value
+                    weight_pos = (
+                        current_out_channel * weight_strides[0]
+                        + current_in_channel * weight_strides[1]
+                        + kernel_height * weight_strides[2]
+                        + kernel_width * weight_strides[3]
                     )
-                    out[out_idx] = acc
+
+                    # Current input value (subtract offset if reverse)
+                    input_height = (
+                        current_out_height - conv_offset_h
+                        if reverse
+                        else current_out_height + conv_offset_h
+                    )
+                    input_width = (
+                        current_out_width - conv_offset_w
+                        if reverse
+                        else current_out_width + conv_offset_w
+                    )
+
+                    # Check if input is in bounds
+                    if 0 <= input_height < height and 0 <= input_width < width:
+                        input_pos = (
+                            current_batch * input_strides[0]
+                            + current_in_channel * input_strides[1]
+                            + input_height * input_strides[2]
+                            + input_width * input_strides[3]
+                        )
+                        acc += input[input_pos] * weight[weight_pos]
+
+        # Write the result to the output tensor
+        out_pos = index_to_position(out_index, out_strides)
+        out[out_pos] = acc
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
 
