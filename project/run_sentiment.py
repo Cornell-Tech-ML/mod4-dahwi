@@ -33,9 +33,8 @@ class Conv1d(minitorch.Module):
         self.weights = RParam(out_channels, in_channels, kernel_width)
         self.bias = RParam(1, out_channels, 1)
 
-    def forward(self, input):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+    def forward(self, input):        
+        return minitorch.conv1d(input, self.weights.value) + self.bias.value
 
 
 class CNNSentimentKim(minitorch.Module):
@@ -48,7 +47,7 @@ class CNNSentimentKim(minitorch.Module):
         feature_map_size=100 output channels and [3, 4, 5]-sized kernels
         followed by a non-linear activation function (the paper uses tanh, we apply a ReLu)
     2. Apply max-over-time across each feature map
-    3. Apply a Linear to size C (number of classes) followed by a ReLU and Dropout with rate 25%
+    3. Apply a Linear to size C (number of classes) followed Dropout with rate 25%
     4. Apply a sigmoid over the class dimension.
     """
 
@@ -61,16 +60,34 @@ class CNNSentimentKim(minitorch.Module):
     ):
         super().__init__()
         self.feature_map_size = feature_map_size
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        self.conv1 = Conv1d(embedding_size, feature_map_size, filter_sizes[0])
+        self.conv2 = Conv1d(embedding_size, feature_map_size, filter_sizes[1])
+        self.conv3 = Conv1d(embedding_size, feature_map_size, filter_sizes[2])
+        self.linear = Linear(feature_map_size, 1)
+        self.dropout = dropout
 
     def forward(self, embeddings):
         """
         embeddings tensor: [batch x sentence length x embedding dim]
         """
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        embeddings = embeddings.permute(0, 2, 1)
+        # Apply 1d convolution with 3, 4, 5 sized kernels
+        conv1_out = self.conv1(embeddings).relu()
+        conv2_out = self.conv2(embeddings).relu()
+        conv3_out = self.conv3(embeddings).relu()
+        # Apply max-over-time pooling
+        max1 = minitorch.nn.max(conv1_out, 2)
+        max2 = minitorch.nn.max(conv2_out, 2)
+        max3 = minitorch.nn.max(conv3_out, 2)
 
+        # Add max pooled features
+        all_out = max1 + max2 + max3
+        all_out = all_out.view(all_out.shape[0], self.feature_map_size)
+        # Apply linear layer
+        linear_out = self.linear(all_out)
+        dropout_out = minitorch.dropout(linear_out, self.dropout, not self.training)
+        res= dropout_out.sigmoid()
+        return res.view(res.shape[0])
 
 # Evaluation helper methods
 def get_predictions_array(y_true, model_output):
