@@ -31,6 +31,7 @@ from .tensor_functions import (
     Sum,
     View,
     tensor,
+    Max,
 )
 
 if TYPE_CHECKING:
@@ -386,3 +387,7 @@ class Tensor:
     def view(self, *shape: int) -> Tensor:
         """Reshapes the tensor to a new shape with the same size."""
         return View.apply(self, tensor(list(shape)))
+
+    def max(self, dim: int) -> Tensor:
+        """Compute the max along a dimension"""
+        return Max.apply(self, self._ensure_tensor(dim))

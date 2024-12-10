@@ -232,6 +232,27 @@ class IsClose(Function):
         return a.f.is_close_zip(a, b)
 
 
+class Max(Function):
+    @staticmethod
+    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
+        """Forward for max"""
+        ctx.save_for_backward(a, dim)
+        return a.f.max_reduce(a, int(dim.item()))
+
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+        """Backward for max"""
+        input, dim = ctx.saved_values
+        # Compute the max
+        m = input.max(dim)
+        # Create a tensor with 1s at the max
+        one_hot_mask = input == m
+
+        # Distribute gradients across the one-hot mask
+        grad_input = one_hot_mask * grad_output
+        return grad_input, 0.0
+
+
 class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, order: Tensor) -> Tensor:
