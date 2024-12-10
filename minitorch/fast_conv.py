@@ -291,18 +291,6 @@ def _tensor_conv2d(
                         + kernel_width * weight_strides[3]
                     )
 
-                    # # Current input value (subtract offset if reverse)
-                    # input_height = (
-                    #     current_out_height - conv_offset_h
-                    #     if reverse
-                    #     else current_out_height + conv_offset_h
-                    # )
-                    # input_width = (
-                    #     current_out_width - conv_offset_w
-                    #     if reverse
-                    #     else current_out_width + conv_offset_w
-                    # )
-
                     # Check if input is in bounds
                     if 0 <= input_height < height and 0 <= input_width < width:
                         input_pos = (
