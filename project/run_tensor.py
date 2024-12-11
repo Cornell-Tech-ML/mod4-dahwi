@@ -11,9 +11,41 @@ def RParam(*shape):
     r = 2 * (minitorch.rand(shape) - 0.5)
     return minitorch.Parameter(r)
 
-
 def default_log_fn(epoch, total_loss, correct, losses):
     print("Epoch ", epoch, " loss ", total_loss, "correct", correct)
+
+class Network(minitorch.Module):
+    def __init__(self, hidden_layers):
+        super().__init__()
+        self.layer1 = Linear(2, hidden_layers)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        self.layer3 = Linear(hidden_layers, 1)
+
+    def forward(self, x):
+        middle = self.layer1.forward(x).relu()
+        end = self.layer2.forward(middle).relu()
+        return self.layer3.forward(end).sigmoid()
+
+
+class Linear(minitorch.Module):
+    def __init__(self, in_size, out_size):
+        super().__init__()
+        self.weights = RParam(in_size, out_size)
+        self.bias = RParam(out_size)
+
+    def forward(self, input):
+        """
+        Perform a forward pass through the linear layer.
+
+        Args:
+            inputs : The input tensor to the layer.
+
+        Returns:
+            minitorch.Tensor: The output tensor after applying the linear transformation.
+        """
+        w = self.weights.value
+        mat_mul = minitorch.Tensor.sum(input.view(input.shape[0], 1, input.shape[1]) * w.view(1, w.shape[1], w.shape[0]), dim=2)
+        return mat_mul.view(mat_mul.shape[0], mat_mul.shape[1]) + self.bias.value
 
 
 class TensorTrain:
