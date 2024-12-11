@@ -33,7 +33,7 @@ class Conv1d(minitorch.Module):
         self.weights = RParam(out_channels, in_channels, kernel_width)
         self.bias = RParam(1, out_channels, 1)
 
-    def forward(self, input):        
+    def forward(self, input):
         return minitorch.conv1d(input, self.weights.value) + self.bias.value
 
 
